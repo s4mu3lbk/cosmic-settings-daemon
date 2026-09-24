@@ -25,6 +25,8 @@ pub struct Config {
     pub enabled: bool,
     /// Color temperature in Kelvin applied while night light is active.
     pub temperature: f32,
+    /// Whether to keep night light active at all times, ignoring the schedule.
+    pub always_on: bool,
     /// Whether to schedule night light from sunset to sunrise, using the
     /// system location via GeoClue. Falls back to the manual schedule when
     /// no location is available.
@@ -40,6 +42,7 @@ impl Default for Config {
         Self {
             enabled: false,
             temperature: DEFAULT_TEMPERATURE,
+            always_on: false,
             auto_schedule: true,
             schedule_start_minutes: 19 * 60,
             schedule_end_minutes: 7 * 60,
