@@ -41,6 +41,7 @@ pub struct PreciseApplicationException {
 pub struct Config {
     pub tiling_exception_defaults: Vec<DefaultApplicationException>,
     pub tiling_exception_custom: Vec<PreciseApplicationException>,
+    pub hint_exception_custom: Vec<PreciseApplicationException>,
 }
 
 impl Config {
@@ -74,19 +75,7 @@ pub fn tiling_exceptions(context: &cosmic_config::Config) -> Vec<ApplicationExce
         .collect::<Vec<PreciseApplicationException>>();
 
     // Load custom shortcuts defined by the user.
-    let custom = context
-        .get::<Vec<PreciseApplicationException>>("tiling_exception_custom")
-        .unwrap_or_else(|why| {
-            if why.is_err()
-                && let cosmic_config::Error::GetKey(_, err) = &why
-                && err.kind() != std::io::ErrorKind::NotFound
-            {
-                tracing::error!("tiling exceptions custom config error: {why}");
-                return Vec::new();
-            }
-            tracing::debug!("tiling exceptions custom config not present: {why}");
-            Vec::new()
-        });
+    let custom = custom_exceptions(context, "tiling_exception_custom");
 
     for exception in custom {
         if let Some(existing) = expanded
@@ -116,4 +105,42 @@ pub fn tiling_exceptions(context: &cosmic_config::Config) -> Vec<ApplicationExce
             }
         })
         .collect()
+}
+
+/// Get user-defined active hint exceptions
+///
+/// Unlike tiling exceptions, there are no system defaults: only custom rules
+/// are applied. Windows matching these rules never show a focus indicator.
+pub fn hint_exceptions(context: &cosmic_config::Config) -> Vec<ApplicationException> {
+    custom_exceptions(context, "hint_exception_custom")
+        .into_iter()
+        .filter_map(|exception| {
+            if exception.enabled {
+                Some(ApplicationException {
+                    appid: exception.appid,
+                    title: exception.title,
+                })
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// Load a per-key list of user-defined precise exceptions
+fn custom_exceptions(
+    context: &cosmic_config::Config,
+    key: &str,
+) -> Vec<PreciseApplicationException> {
+    context.get::<Vec<PreciseApplicationException>>(key).unwrap_or_else(|why| {
+        if why.is_err()
+            && let cosmic_config::Error::GetKey(_, err) = &why
+            && err.kind() != std::io::ErrorKind::NotFound
+        {
+            tracing::error!("{key} config error: {why}");
+            return Vec::new();
+        }
+        tracing::debug!("{key} config not present: {why}");
+        Vec::new()
+    })
 }
